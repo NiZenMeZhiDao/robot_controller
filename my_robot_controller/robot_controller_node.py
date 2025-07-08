@@ -36,7 +36,8 @@ class ModelController:
     NUM_JOINTS_FOR_OBS = 9  # 仅处理9个关节
     ACTION_CLIP_RANGE = 1.22
     ACTION_SCALE_FACTOR = 0.25
-
+    COMMAND_LIN_RANGE = 3.5  # 线速度范围
+    COMMAND_ANG_RANGE = 2.0  # 角速度范围
     def __init__(self, model_path: str, ros_node: Node = None):
         self.ros_node = ros_node
 
@@ -226,19 +227,23 @@ class RobotControllerNode(Node):
         """
         订阅 angvel 话题的回调函数，更新基座角速度。
         """
+        # self._latest_angular_velocity = np.array([
+        #     math.radians(msg.x),
+        #     math.radians(msg.y),
+        #     math.radians(msg.z)
+        # ], dtype=np.float32)
         self._latest_angular_velocity = np.array([
-            math.radians(msg.x),
-            math.radians(msg.y),
-            math.radians(msg.z)
-        ], dtype=np.float32)
-
+                    msg.x,
+                    msg.y,
+                    msg.z
+                ], dtype=np.float32)
     def _cmd_vel_callback(self, msg: Twist):
         """
         订阅 cmd_vel 话题的回调函数，更新机器人速度指令。
         """
-        lin_vel_x = float(msg.linear.x)
-        lin_vel_y = float(msg.linear.y)
-        ang_vel_z = float(msg.angular.z)
+        lin_vel_x = float(msg.linear.x).clip(0.0, self.model_controller.COMMAND_LIN_RANGE)
+        lin_vel_y = float(msg.linear.y).clip(0.0,0.0)
+        ang_vel_z = float(msg.angular.z).clip(-1.0 * self.model_controller.COMMAND_ANG_RANGE, self.model_controller.COMMAND_ANG_RANGE)
         self.model_controller.set_command(lin_vel_x, lin_vel_y, ang_vel_z)
         self.get_logger().debug(f"接收到 cmd_vel 指令: X={lin_vel_x:.2f}, Y={lin_vel_y:.2f}, Z={ang_vel_z:.2f}")
 
